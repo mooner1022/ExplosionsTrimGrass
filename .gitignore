@@ -21,6 +21,7 @@ hs_err_pid*
 *.docx
 .git
 *.xlsx
-target/
+build/
+.gradle/
 test/
 *.lnk

@@ -1,5 +1,7 @@
 package me.justeli.trim.handler;
 
+import com.cjcrafter.foliascheduler.FoliaCompatibility;
+import com.cjcrafter.foliascheduler.ServerImplementation;
 import me.justeli.trim.ExplosionsTrimGrass;
 import me.justeli.trim.config.ConfiguredBlock;
 import me.justeli.trim.event.ExplosionTrimEvent;
@@ -13,6 +15,7 @@ import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Explosive;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 
@@ -21,6 +24,9 @@ import java.util.ArrayList;
  * @since January 4, 2017 (me.justeli.trim)
  */
 public final class TrimEffectHandler {
+    // Should re-use scheduler instance
+    private ServerImplementation _scheduler = null;
+
     public TrimEffectHandler(ExplosionsTrimGrass plugin) {
         plugin.registerEvent(EntityExplodeEvent.class, EventPriority.LOWEST, event -> {
             if (!(event.getEntity() instanceof Explosive) && !(event.getEntity() instanceof Creeper)) {
@@ -35,13 +41,14 @@ public final class TrimEffectHandler {
         });
 
         plugin.registerEvent(ExplosionTrimEvent.class, event -> {
-            var world = event.getLocation().getWorld();
+            var location = event.getLocation();
+            var world = location.getWorld();
             if (world == null) {
                 return;
             }
 
             var blockList = new ArrayList<>(event.getBlockList());
-            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+            getScheduler(plugin).region(location).runDelayed(() -> {
                 for (Block block : blockList) {
                     ConfiguredBlock configuredBlock = plugin.getConfigCache().getConfiguredBlock(block.getType());
                     if (configuredBlock == null) {
@@ -70,8 +77,8 @@ public final class TrimEffectHandler {
                         block.breakNaturally();
                     }
                     else if (block.getLocation().getBlock().getRelative(BlockFace.UP).getType() == Material.AIR) {
-                        Location location = block.getLocation().clone().add(0.5, 1.05, 0.5);
-                        world.spawnParticle(Particle.BLOCK, location, 30, 0.5, 0, 0.5, block.getType().createBlockData());
+                        Location nLocation = block.getLocation().clone().add(0.5, 1.05, 0.5);
+                        world.spawnParticle(Particle.BLOCK, nLocation, 30, 0.5, 0, 0.5, block.getType().createBlockData());
                         block.setType(setTo);
                     }
                 }
@@ -79,5 +86,11 @@ public final class TrimEffectHandler {
 
             event.getBlockList().clear();
         });
+    }
+
+    private ServerImplementation getScheduler(Plugin plugin) {
+        if (_scheduler == null)
+            _scheduler = new FoliaCompatibility(plugin).getServerImplementation();
+        return _scheduler;
     }
 }
